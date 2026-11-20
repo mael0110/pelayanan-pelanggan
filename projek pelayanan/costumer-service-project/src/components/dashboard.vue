@@ -9,9 +9,6 @@ const listHistory = ref([])
 const isLoading = ref(false)
 const apiError = ref('')
 
-// State Filter Status
-const selectedFilter = ref('All')
-
 // Fetch Data dari Backend
 const fetchDataDashboard = async () => {
   isLoading.value = true
@@ -52,19 +49,6 @@ const countProgress = computed(() => {
 
 const countPending = computed(() => {
   return listPelanggan.value.filter(p => p.status?.toUpperCase() === 'PENDING').length
-})
-
-// Filter Data Pelanggan
-const filteredPelanggan = computed(() => {
-  if (selectedFilter.value === 'All') return listPelanggan.value
-  return listPelanggan.value.filter(p => {
-    const status = p.status?.toUpperCase()
-    const filter = selectedFilter.value.toUpperCase()
-    if (filter === 'ON PROGRESS') {
-      return status === 'ON PROGRESS' || status === 'DIPROSES'
-    }
-    return status === filter
-  })
 })
 
 // Helper Format Tanggal (DD/MM/YYYY)
@@ -163,17 +147,6 @@ const getStatusClass = (status) => {
           <div class="flex items-center justify-between mb-4 md:mb-6">
             <h2 class="text-base md:text-lg font-bold text-app-text">Pelanggan</h2>
             <div class="flex items-center gap-3">
-              <!-- Filter Dropdown -->
-              <select 
-                v-model="selectedFilter"
-                class="bg-app-primary md:bg-app-primary text-white text-xs font-light px-2.5 py-1.5 rounded-lg focus:outline-none cursor-pointer border md:border-none"
-              >
-                <option value="All" class="bg-white text-gray-800">Filter by: Status</option>
-                <option value="Pending" class="bg-white text-gray-800">Pending</option>
-                <option value="On Progress" class="bg-white text-gray-800">On Progress</option>
-                <option value="Selesai" class="bg-white text-gray-800">Selesai</option>
-              </select>
-
               <button class="hidden md:inline-block text-xs font-light hover:text-app-text underline" @click="$router.push('/daftar_pelanggan')">
                 View All
               </button>
@@ -199,7 +172,7 @@ const getStatusClass = (status) => {
                 </tr>
 
                 <!-- Data Render -->
-                <tr v-else v-for="(item, index) in filteredPelanggan.slice(0, 4)" :key="item.idPengaduan || index" class="hover:bg-gray-50">
+                <tr v-else v-for="(item, index) in listPelanggan.slice(0, 4)" :key="item.idPengaduan || index" class="hover:bg-gray-50">
                   <td class="py-2.5 font-normal text-center">{{ index + 1 }}</td>
                   <td class="py-2.5 font-normal text-center">{{ item.pelanggan.namaPelanggan || '-' }}</td>
                   <td class="py-2.5 font-normal text-center">{{ item.keluhan || '-' }}</td>
@@ -216,7 +189,7 @@ const getStatusClass = (status) => {
                 </tr>
 
                 <!-- Empty State -->
-                <tr v-if="!isLoading && filteredPelanggan.length === 0">
+                <tr v-if="!isLoading && listPelanggan.length === 0">
                   <td colspan="5" class="py-6 text-center text-gray-400">Tidak ada data pelanggan.</td>
                 </tr>
               </tbody>
