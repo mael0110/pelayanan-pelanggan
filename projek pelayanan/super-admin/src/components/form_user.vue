@@ -20,22 +20,33 @@ const form = ref({
     email: '',
     username: '',
     password: '',
-    role: 'Operator'
+    role: isEdit.value ? '' : 'Operator'
 })
+
+// Helper pemetaan role Enum Backend -> UI (Super_Admin / SUPER_ADMIN -> Super Admin)
+const mapRoleToUI = (role) => {
+    if (!role) return ''
+    const clean = String(role).toLowerCase().replace(/_/g, ' ').trim()
+    if (clean.includes('super')) return 'Super Admin'
+    if (clean === 'cs') return 'CS'
+    if (clean === 'operator') return 'Operator'
+    if (clean === 'pengawas') return 'Pengawas'
+    return String(role).replace(/_/g, ' ').trim()
+}
 
 onMounted(async () => {
     if (isEdit.value) {
         try {
             const res = await superServices.users()
             const users = res.data?.data || res.data || []
-            const user = users.find(u => (u.idUser || u.id) === idUser)
+            const user = users.find(u => String(u.idUser || u.id) === String(idUser))
             if (user) {
                 form.value = {
                     namaUser: user.namaUser || '',
                     email: user.email || '',
                     username: user.username || '',
                     password: '',
-                    role: user.role || 'Operator'
+                    role: mapRoleToUI(user.role)
                 }
             }
         } catch (err) {
@@ -126,7 +137,7 @@ const submitForm = async () => {
             <!-- Form -->
             <form @submit.prevent="submitForm" class="bg-white p-5 rounded-2xl border border-gray-100 space-y-4 shadow-sm">
                 <div>
-                    <label class="block text-xs font-medium mb-1.5">Nama User</label>
+                    <label class="block text-xs font-medium mb-1.5">Nama Lengkap</label>
                     <input v-model="form.namaUser" type="text" class="w-full bg-app-bg rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#427AA1] outline-none">
                 </div>
 
@@ -143,6 +154,7 @@ const submitForm = async () => {
                 <div>
                     <label class="block text-xs font-medium mb-1.5">Role</label>
                     <select v-model="form.role" class="w-full bg-app-bg rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#427AA1] outline-none cursor-pointer">
+                        <option value="" disabled hidden></option>
                         <option value="Super Admin">Super Admin</option>
                         <option value="CS">CS</option>
                         <option value="Operator">Operator</option>

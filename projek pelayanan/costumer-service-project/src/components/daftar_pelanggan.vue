@@ -53,6 +53,23 @@ const form = ref({
     status: 'PENDING'
 })
 
+// Helper mapping Saluran Keluhan sesuai enum('Datang Langsung','Via Telepon','Temuan Lapangan')
+const mapSaluranToSelect = (val) => {
+    const raw = String(val || '').toLowerCase().replace(/_/g, ' ').trim()
+    if (raw.includes('datang')) return 'Datang Langsung'
+    if (raw.includes('telepon') || raw.includes('telp')) return 'Via Telepon'
+    if (raw.includes('temuan') || raw.includes('lapangan') || raw.includes('whatsapp')) return 'Temuan Lapangan'
+    return ''
+}
+
+// Helper mapping Sumber Aduan
+const mapSumberToSelect = (val) => {
+    const raw = String(val || '').toLowerCase().replace(/_/g, ' ').trim()
+    if (raw.includes('non')) return 'Non_Pelanggan'
+    if (raw.includes('pelanggan')) return 'Pelanggan'
+    return ''
+}
+
 // tambah
 const addModal = () => {
     // Jika tampilan Mobile, pindah ke Halaman Tambah Pelanggan Baru
@@ -92,26 +109,6 @@ const editModal = (item) => {
     errorMessage.value = ''
     modalMode.value = 'edit'
     modalTitle.value = 'Edit Pelanggan'
-    
-    // 1. Safe Mapping Saluran Keluhan (Mendukung enum backend & penulisan teks UI)
-    const rawSaluran = String(item.saluranKeluhan || '').toLowerCase().trim()
-    let mappedSaluran = ''
-    if (rawSaluran === 'datang_ketempat' || rawSaluran.includes('datang')) {
-        mappedSaluran = 'Datang_Ketempat'
-    } else if (rawSaluran === 'telepon' || rawSaluran.includes('telp')) {
-        mappedSaluran = 'Telepon'
-    } else if (rawSaluran === 'whatsapp' || rawSaluran.includes('temuan') || rawSaluran.includes('lapangan')) {
-        mappedSaluran = 'Whatsapp'
-    }
-
-    // 2. Safe Mapping Sumber Aduan (Mendukung enum backend & penulisan teks UI)
-    const rawSumber = String(item.sumberAduan || '').toLowerCase().trim()
-    let mappedSumber = ''
-    if (rawSumber === 'non_pelanggan' || rawSumber.includes('non')) {
-        mappedSumber = 'Non_Pelanggan'
-    } else if (rawSumber === 'pelanggan' || rawSumber.includes('pelanggan')) {
-        mappedSumber = 'Pelanggan'
-    }
 
     // Simpan idPengaduan & status asli item dari backend
     form.value = {
@@ -121,8 +118,8 @@ const editModal = (item) => {
         noTelp: item.pelanggan?.noHp || '',
         noPdam: item.pelanggan?.noKontakPdam || '',
         alamat: item.pelanggan?.alamat || '',
-        saluranKeluhan: mappedSaluran,
-        sumberAduan: mappedSumber,
+        saluranKeluhan: mapSaluranToSelect(item.saluranKeluhan),
+        sumberAduan: mapSumberToSelect(item.sumberAduan),
         keluhan: item.keluhan || '',
         status: item.status || 'PENDING'
     }
@@ -493,9 +490,9 @@ const formatStatus = (status) => {
                                 <label class="block text-xs font-medium mb-1.5">Saluran Keluhan</label>
                                 <select v-model="form.saluranKeluhan" :disabled="isSubmitting" class="w-full bg-app-bg rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#427AA1] outline-none cursor-pointer disabled:opacity-60">
                                     <option value="" disabled selected hidden></option>
-                                    <option value="Datang_Ketempat">Datang Langsung</option>
-                                    <option value="Telepon">Via Telepon</option>
-                                    <option value="Whatsapp">Temuan Lapangan</option>
+                                    <option value="Datang Langsung">Datang Langsung</option>
+                                    <option value="Via Telepon">Via Telepon</option>
+                                    <option value="Temuan Lapangan">Temuan Lapangan</option>
                                 </select>
                             </div>
 
