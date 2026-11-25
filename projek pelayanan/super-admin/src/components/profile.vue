@@ -10,6 +10,37 @@ const isMobileEditPage = ref(false)
 const errorMessage = ref('')
 const modalErrorMessage = ref('')
 
+// Helper Pemetaan Pesan Error ke Bahasa Indonesia Formal
+const getFormalErrorMessage = (error, defaultMessage) => {
+  const status = error?.response?.status
+
+  if (!error?.response) {
+    return 'Koneksi ke server terputus. Silakan periksa jaringan internet Anda dan coba kembali.'
+  }
+
+  switch (status) {
+    case 400:
+      return 'Data yang dikirimkan tidak valid. Silakan periksa kembali isian formulir Anda.'
+    case 401:
+      return 'Kata sandi lama tidak sesuai atau sesi masuk Anda telah berakhir.'
+    case 403:
+      return 'Anda tidak memiliki hak akses untuk melakukan perubahan ini.'
+    case 404:
+      return 'Data akun pengguna tidak ditemukan.'
+    case 409:
+      return 'Nama pengguna (username) atau alamat email sudah digunakan oleh akun lain.'
+    case 422:
+      return 'Data tidak dapat diproses. Pastikan seluruh kolom wajib telah diisi dengan benar.'
+    case 500:
+    case 502:
+    case 503:
+    case 504:
+      return 'Terjadi gangguan pada server. Silakan coba beberapa saat lagi.'
+    default:
+      return defaultMessage
+  }
+}
+
 // Data Profil yang ditampilkan
 const profile = ref({
   namaUser: '',
@@ -63,12 +94,17 @@ const formattedCreatedAt = computed(() => {
 
 // Ambil data profil langsung dari localStorage (hasil login)
 const loadProfileFromStorage = () => {
-  const savedUser = JSON.parse(localStorage.getItem('user') || '{}')
-  profile.value.namaUser = savedUser.namaUser || ''
-  profile.value.username = savedUser.username || ''
-  profile.value.email = savedUser.email || ''
-  profile.value.role = savedUser.role || ''
-  profile.value.createdAt = savedUser.createdAt || ''
+  try {
+    const savedUser = JSON.parse(localStorage.getItem('user') || '{}')
+    profile.value.namaUser = savedUser.namaUser || ''
+    profile.value.username = savedUser.username || ''
+    profile.value.email = savedUser.email || ''
+    profile.value.role = savedUser.role || ''
+    profile.value.createdAt = savedUser.createdAt || ''
+  } catch (error) {
+    console.error('Detail Error Memuat Data Profil dari Penyimpanan Lokal:', error)
+    errorMessage.value = 'Gagal memuat informasi profil pengguna. Silakan muat ulang halaman.'
+  }
 }
 
 // Buka Form Edit (Mobile -> Halaman Baru, Laptop -> Pop-up Modal)
@@ -103,17 +139,17 @@ const handleUpdateProfile = async () => {
   errorMessage.value = ''
 
   if (!form.value.namaUser.trim() || !form.value.username.trim() || !form.value.email.trim()) {
-    modalErrorMessage.value = 'Nama lengkap, username, dan email wajib diisi!'
+    modalErrorMessage.value = 'Nama lengkap, nama pengguna, dan alamat email wajib diisi.'
     return
   }
 
   if (form.value.newPassword && !form.value.oldPassword) {
-    modalErrorMessage.value = 'Password lama wajib diisi jika ingin mengganti password!'
+    modalErrorMessage.value = 'Kata sandi lama wajib diisi apabila Anda ingin mengganti kata sandi.'
     return
   }
 
   if (form.value.oldPassword && !form.value.newPassword) {
-    modalErrorMessage.value = 'Password baru wajib diisi!'
+    modalErrorMessage.value = 'Kata sandi baru wajib diisi.'
     return
   }
 
@@ -152,7 +188,11 @@ const handleUpdateProfile = async () => {
     isEditModalOpen.value = false
     isMobileEditPage.value = false
   } catch (error) {
-    modalErrorMessage.value = error.response?.data?.message || 'Gagal memperbarui profil akun.'
+    console.error('Detail Error Perbarui Profil:', error.response?.data || error)
+    modalErrorMessage.value = getFormalErrorMessage(
+      error,
+      'Gagal memperbarui profil akun. Silakan coba kembali.'
+    )
   } finally {
     isSaving.value = false
   }

@@ -8,6 +8,37 @@ import superServices from '@/services/superServices.js'
 // helper pendeteksi layar mobile (< 768px)
 const isMobile = () => window.innerWidth < 768
 
+// Helper Pemetaan Pesan Error ke Bahasa Indonesia Formal
+const getFormalErrorMessage = (error, defaultMessage) => {
+    const status = error?.response?.status
+
+    if (!error?.response) {
+        return 'Koneksi ke server terputus. Silakan periksa jaringan internet Anda dan coba kembali.'
+    }
+
+    switch (status) {
+        case 400:
+            return 'Data yang dikirimkan tidak valid. Silakan periksa kembali isian formulir Anda.'
+        case 401:
+            return 'Sesi masuk Anda telah berakhir. Silakan masuk kembali.'
+        case 403:
+            return 'Anda tidak memiliki hak akses untuk melakukan tindakan ini.'
+        case 404:
+            return 'Data pelanggan yang dimaksud tidak ditemukan.'
+        case 409:
+            return 'Data pelanggan dengan informasi tersebut sudah terdaftar.'
+        case 422:
+            return 'Data tidak dapat diproses. Pastikan seluruh kolom wajib telah diisi dengan benar.'
+        case 500:
+        case 502:
+        case 503:
+        case 504:
+            return 'Terjadi gangguan pada server. Silakan coba beberapa saat lagi.'
+        default:
+            return defaultMessage
+    }
+}
+
 // state tambah dan edit pelanggan
 const isModalOpen = ref(false)
 const isSubmitting = ref(false)
@@ -27,8 +58,11 @@ const fetchPelanggan = async () => {
         const response = await superServices.getAll()
         pelangganList.value = response.data?.data || response.data || []
     } catch (error) {
-        apiError.value = 'Gagal mengambil data pelanggan.'
-        console.error(error)
+        console.error('Detail Error Memuat Daftar Pelanggan:', error.response?.data || error)
+        apiError.value = getFormalErrorMessage(
+            error,
+            'Gagal memuat data pelanggan. Silakan muat ulang halaman.'
+        )
     } finally {
         isLoading.value = false
     }
@@ -140,7 +174,7 @@ const submitForm = async () => {
         !form.value.sumberAduan?.trim() ||
         !form.value.keluhan?.trim()
     ) {
-        errorMessage.value = 'Semua field harus diisi!'
+        errorMessage.value = 'Seluruh kolom formulir wajib diisi.'
         return
     }
 
@@ -182,8 +216,11 @@ const submitForm = async () => {
         isModalOpen.value = false
         await fetchPelanggan()
     } catch (error) {
-        errorMessage.value = error.response?.data?.message || error.response?.data?.error || 'Gagal menyimpan data pelanggan.'
-        console.error('Detail Error:', error.response?.data || error)
+        console.error('Detail Error Simpan Pelanggan:', error.response?.data || error)
+        errorMessage.value = getFormalErrorMessage(
+            error,
+            'Gagal menyimpan data pelanggan. Silakan coba kembali.'
+        )
     } finally {
         isSubmitting.value = false
     }
@@ -215,14 +252,17 @@ const toIsoDateString = (dataString) => {
 const filterPelanggan = computed(() => {
     return pelangganList.value.filter(item => {
         const nama = item.pelanggan?.namaPelanggan || ''
+        const noPdam = String(item.pelanggan?.noKontakPdam || '')
         const keluhan = item.keluhan || ''
         const status = item.status || ''
         const itemDate = toIsoDateString(item.updatedAt || item.createdAt)
+        const keyword = searchQuery.value.toLowerCase().trim()
 
-        // search
+        // search (Nama Pelanggan, No. PDAM, dan Keluhan)
         const matchSearch =
-            nama.toLowerCase().includes(searchQuery.value.toLowerCase().trim()) ||
-            keluhan.toLowerCase().includes(searchQuery.value.toLowerCase().trim())
+            nama.toLowerCase().includes(keyword) ||
+            noPdam.toLowerCase().includes(keyword) ||
+            keluhan.toLowerCase().includes(keyword)
 
         // filter status
         const matchStatus = selectedFilter.value === 'All' || status.toUpperCase() === selectedFilter.value.toUpperCase()
@@ -381,6 +421,7 @@ const formatStatus = (status) => {
                                 <!-- Kolom "No" disembunyikan di Mobile sesuai gambar -->
                                 <th class="hidden md:table-cell pb-3.5 w-12 font-medium">No</th>
                                 <th class="pb-2 md:pb-3.5 font-medium leading-tight text-center md:text-left">Nama<br class="md:hidden"/> Pelanggan</th>
+                                <th class="md:hidden pb-2 font-medium leading-tight text-center">No.<br/> PDAM</th>
                                 <th class="pb-2 md:pb-3.5 font-medium text-center">Keluhan</th>
                                 <th class="pb-2 md:pb-3.5 font-medium text-center">Status</th>
                                 <th class="pb-2 md:pb-3.5 font-medium text-center">Tanggal</th>
@@ -390,14 +431,14 @@ const formatStatus = (status) => {
                         <tbody class="divide-y divide-gray-300 text-[11px] md:text-xs text-center">
                             <!-- Loading State -->
                             <tr v-if="isLoading">
-                                <td colspan="6" class="py-6 text-center text-gray-500 font-normal">
+                                <td colspan="7" class="py-6 text-center text-gray-500 font-normal">
                                     Memuat data pelanggan...
                                 </td>
                             </tr>
 
                             <!-- Error State -->
                             <tr v-else-if="apiError">
-                                <td colspan="6" class="py-6 text-center text-red-500 font-normal">
+                                <td colspan="7" class="py-6 text-center text-red-500 font-normal">
                                     {{ apiError }}
                                 </td>
                             </tr>
@@ -406,6 +447,7 @@ const formatStatus = (status) => {
                             <tr v-else v-for="(item, index) in filterPelanggan" :key="item.idPengaduan || index" class="hover:bg-gray-50 transition">
                                 <td class="hidden md:table-cell py-3 font-normal">{{ index + 1 }}</td>
                                 <td class="py-2.5 md:py-3 font-normal text-center md:text-left">{{ item.pelanggan.namaPelanggan || '-' }}</td>
+                                <td class="md:hidden py-2.5 font-normal text-center whitespace-nowrap">{{ item.pelanggan.noKontakPdam || '-' }}</td>
                                 <td class="py-2.5 md:py-3 font-normal text-center max-w-[100px] truncate">{{ item.keluhan || '-' }}</td>
                                 <td class="py-2.5 md:py-3 font-normal text-center">
                                     <span :class="{
@@ -431,7 +473,7 @@ const formatStatus = (status) => {
                             </tr>
 
                             <tr v-if="!isLoading && !apiError && filterPelanggan.length === 0">
-                                <td colspan="6" class="py-3 text-center font-normal">
+                                <td colspan="7" class="py-3 text-center font-normal">
                                     Data pelanggan tidak ditemukan.
                                 </td>
                             </tr>

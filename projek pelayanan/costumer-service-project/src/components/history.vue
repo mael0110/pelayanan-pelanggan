@@ -2,34 +2,31 @@
 import layout from './layout.vue'
 import { ref, computed, onMounted } from 'vue'
 import { ChevronLeft, Search, Calendar, X } from 'lucide-vue-next'
-import pelangganServices from '@/services/pelangganServices.js'
+import monitoringServices from '@/services/pelangganServices.js'
 
 const isLoading = ref(false)
 const apiError = ref('')
 const searchQuery = ref('')
 const selectedDate = ref('')
-
-// Inisialisasi sebagai Array kosong
 const pelangganHistory = ref([])
 
+// Fetch Data History dari Service CS
 const fetchHistory = async () => {
-    isLoading.value = true
-    apiError.value = ''
-    try {
-        const response = await pelangganServices.history()
-        // Membaca array data langsung dari response API
-        pelangganHistory.value = response.data?.data || response.data || []
-    } catch (error) {
-        apiError.value = 'Gagal mengambil data riwayat pelanggan.'
-        console.error(error)
-    } finally {
-        isLoading.value = false
-    }
+  isLoading.value = true
+  apiError.value = ''
+  try {
+    const response = await monitoringServices.history()
+    pelangganHistory.value = response.data?.data || response.data || []
+  } catch (error) {
+    apiError.value = 'Gagal memuat data history pelanggan.'
+    console.error(error)
+  } finally {
+    isLoading.value = false
+  }
 }
 
-// Panggil fetch data saat komponen dimuat
 onMounted(() => {
-    fetchHistory()
+  fetchHistory()
 })
 
 // Helper format tanggal ke YYYY-MM-DD untuk pencocokan input date
@@ -49,12 +46,14 @@ const filterHistory = computed(() => {
 
     return pelangganHistory.value.filter(item => {
         const nama = item.pelanggan?.namaPelanggan || ''
+        const noPdam = String(item.pelanggan?.noKontakPdam || '')
         const keluhan = item.keluhan || ''
         const tglMasuk = toIsoDateString(item.tanggalDiterima || item.createdAt)
         const tglSelesai = toIsoDateString(item.tanggalSelesai)
         
         const matchSearch = !query || 
             nama.toLowerCase().includes(query) || 
+            noPdam.toLowerCase().includes(query) ||
             keluhan.toLowerCase().includes(query)
 
         const matchDate = !selectedDate.value || 
@@ -65,20 +64,8 @@ const filterHistory = computed(() => {
     })
 })
 
-// Format Tanggal untuk Laptop (dengan Jam & Menit)
-const formatDateLaptop = (dateString) => {
-    if (!dateString) return '-'
-    const date = new Date(dateString)
-    const day = String(date.getDate()).padStart(2, '0')
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const year = date.getFullYear()
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    return `${day}/${month}/${year} ${hours}:${minutes}`
-}
-
-// Format Tanggal untuk Mobile (dengan Jam & Menit)
-const formatDateMobile = (dateString) => {
+// Format Tanggal dengan Jam & Menit (DD/MM/YYYY HH:mm)
+const formatDateWithTime = (dateString) => {
     if (!dateString) return '-'
     const date = new Date(dateString)
     const day = String(date.getDate()).padStart(2, '0')
@@ -172,6 +159,7 @@ const formatDateMobile = (dateString) => {
                                 <!-- Kolom "No" disembunyikan di Mobile -->
                                 <th class="hidden md:table-cell pb-3.5 w-12 font-medium">No</th>
                                 <th class="pb-2 md:pb-3.5 font-medium">Nama<span class="hidden md:inline"> Pelanggan</span></th>
+                                <th class="pb-2 md:pb-3.5 font-medium">No. PDAM</th>
                                 <!-- Kolom "Keluhan" disembunyikan di Mobile -->
                                 <th class="hidden md:table-cell pb-3.5 font-medium">Keluhan</th>
                                 <th class="pb-2 md:pb-3.5 font-medium">Tanggal Masuk</th>
@@ -181,14 +169,14 @@ const formatDateMobile = (dateString) => {
                         <tbody class="divide-y divide-gray-300 text-[11px] md:text-xs text-center">
                             <!-- Loading State -->
                             <tr v-if="isLoading">
-                                <td colspan="5" class="py-6 text-center text-gray-500">
+                                <td colspan="6" class="py-6 text-center text-gray-500">
                                     Memuat data history...
                                 </td>
                             </tr>
 
                             <!-- Error State -->
                             <tr v-else-if="apiError">
-                                <td colspan="5" class="py-6 text-center text-red-500">
+                                <td colspan="6" class="py-6 text-center text-red-500">
                                     {{ apiError }}
                                 </td>
                             </tr>
@@ -197,20 +185,19 @@ const formatDateMobile = (dateString) => {
                             <tr v-else v-for="(item, index) in filterHistory" :key="item.idPengaduan || index" class="hover:bg-gray-50 transition">
                                 <td class="hidden md:table-cell py-3 font-normal">{{ index + 1 }}</td>
                                 <td class="py-2.5 md:py-3 font-normal">{{ item.pelanggan.namaPelanggan || '-' }}</td>
+                                <td class="py-2.5 md:py-3 font-normal whitespace-nowrap">{{ item.pelanggan.noKontakPdam || '-' }}</td>
                                 <td class="hidden md:table-cell py-3 font-normal">{{ item.keluhan || '-' }}</td>
                                 <td class="py-2.5 md:py-3 font-normal whitespace-nowrap">
-                                    <span class="hidden md:inline">{{ formatDateLaptop(item.tanggalDiterima || item.createdAt) }}</span>
-                                    <span class="md:hidden">{{ formatDateMobile(item.tanggalDiterima || item.createdAt) }}</span>
+                                    {{ formatDateWithTime(item.tanggalDiterima || item.createdAt) }}
                                 </td>
                                 <td class="py-2.5 md:py-3 font-normal whitespace-nowrap">
-                                    <span class="hidden md:inline">{{ formatDateLaptop(item.tanggalSelesai) }}</span>
-                                    <span class="md:hidden">{{ formatDateMobile(item.tanggalSelesai) }}</span>
+                                    {{ formatDateWithTime(item.tanggalSelesai) }}
                                 </td>
                             </tr>
 
                             <!-- Empty State -->
                             <tr v-if="!isLoading && !apiError && filterHistory.length === 0">
-                                <td colspan="5" class="py-6 text-center text-gray-400 font-normal">
+                                <td colspan="6" class="py-6 text-center text-gray-400 font-normal">
                                     Data riwayat pelanggan tidak ditemukan.
                                 </td>
                             </tr>

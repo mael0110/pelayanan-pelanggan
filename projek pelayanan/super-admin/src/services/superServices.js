@@ -33,5 +33,8 @@ export default {
   },
   updateUser(id, data) {
     return apiClient.put(`/users/${id}`, data)
+  },
+  deleteFile(idPengaduan, fileId) {
+    return apiClient.delete(`/pelanggan/${idPengaduan}/files/${fileId}`)
   }
 }

@@ -25,4 +25,7 @@ export default {
         responseType: 'blob' // Agar menerima return dalam bentuk file binary/PDF
         })
     },
+    deleteFile(idPengaduan, fileId) {
+        return apiClient.delete(`/pelanggan/${idPengaduan}/files/${fileId}`)
+    }
 }

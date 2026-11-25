@@ -23,6 +23,39 @@ const form = ref({
     role: isEdit.value ? '' : 'Operator'
 })
 
+// Helper Pemetaan Pesan Error ke Bahasa Indonesia Formal
+const getFormalErrorMessage = (error, defaultMessage) => {
+    const status = error?.response?.status
+    const rawMsg = String(error?.response?.data?.message || error?.response?.data?.error || '').toLowerCase()
+
+    if (!error?.response) {
+        return 'Koneksi ke server terputus. Silakan periksa jaringan internet Anda dan coba kembali.'
+    }
+
+    if (status === 409 || rawMsg.includes('unique') || rawMsg.includes('exist') || rawMsg.includes('duplicate') || rawMsg.includes('sudah')) {
+        return 'Email atau nama pengguna sudah terdaftar. Silakan gunakan email atau nama pengguna lain.'
+    }
+
+    switch (status) {
+        case 400:
+        case 422:
+            return 'Data yang Anda masukkan tidak valid. Silakan periksa kembali seluruh isian formulir.'
+        case 401:
+            return 'Sesi Anda telah berakhir. Silakan masuk kembali untuk melanjutkan.'
+        case 403:
+            return 'Anda tidak memiliki hak akses untuk melakukan tindakan ini.'
+        case 404:
+            return 'Data pengguna yang dimaksud tidak ditemukan.'
+        case 500:
+        case 502:
+        case 503:
+        case 504:
+            return 'Terjadi gangguan pada server. Silakan coba beberapa saat lagi.'
+        default:
+            return defaultMessage
+    }
+}
+
 // Helper pemetaan role Enum Backend -> UI (Super_Admin / SUPER_ADMIN -> Super Admin)
 const mapRoleToUI = (role) => {
     if (!role) return ''
@@ -50,7 +83,8 @@ onMounted(async () => {
                 }
             }
         } catch (err) {
-            errorMessage.value = 'Gagal memuat data user'
+            console.error('Detail Error Load User:', err.response?.data || err)
+            errorMessage.value = getFormalErrorMessage(err, 'Terjadi kesalahan saat memuat data pengguna. Silakan coba kembali.')
         }
     }
 })
@@ -75,7 +109,7 @@ const submitForm = async () => {
         !form.value.role?.trim() ||
         (!isEdit.value && !form.value.password?.trim())
     ) {
-        errorMessage.value = 'Semua field wajib harus diisi!'
+        errorMessage.value = 'Seluruh kolom wajib harus diisi dengan lengkap.'
         return
     }
 
@@ -107,8 +141,8 @@ const submitForm = async () => {
         }
         router.push('/users')
     } catch (error) {
-        errorMessage.value = error.response?.data?.message || error.response?.data?.error || 'Gagal menyimpan data user.'
         console.error('Detail Error Backend:', error.response?.data || error)
+        errorMessage.value = getFormalErrorMessage(error, 'Terjadi kesalahan saat menyimpan data pengguna. Silakan coba kembali.')
     } finally {
         isSubmitting.value = false
     }

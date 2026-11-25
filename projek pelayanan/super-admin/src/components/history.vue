@@ -46,12 +46,14 @@ const filterHistory = computed(() => {
 
     return pelangganHistory.value.filter(item => {
         const nama = item.pelanggan?.namaPelanggan || ''
+        const noPdam = String(item.pelanggan?.noKontakPdam || '')
         const keluhan = item.keluhan || ''
         const tglMasuk = toIsoDateString(item.tanggalDiterima || item.createdAt)
         const tglSelesai = toIsoDateString(item.tanggalSelesai)
         
         const matchSearch = !query || 
             nama.toLowerCase().includes(query) || 
+            noPdam.toLowerCase().includes(query) ||
             keluhan.toLowerCase().includes(query)
 
         const matchDate = !selectedDate.value || 
@@ -157,6 +159,7 @@ const formatDateWithTime = (dateString) => {
                                 <!-- Kolom "No" disembunyikan di Mobile -->
                                 <th class="hidden md:table-cell pb-3.5 w-12 font-medium">No</th>
                                 <th class="pb-2 md:pb-3.5 font-medium">Nama<span class="hidden md:inline"> Pelanggan</span></th>
+                                <th class="pb-2 md:pb-3.5 font-medium">No. PDAM</th>
                                 <!-- Kolom "Keluhan" disembunyikan di Mobile -->
                                 <th class="hidden md:table-cell pb-3.5 font-medium">Keluhan</th>
                                 <th class="pb-2 md:pb-3.5 font-medium">Tanggal Masuk</th>
@@ -166,14 +169,14 @@ const formatDateWithTime = (dateString) => {
                         <tbody class="divide-y divide-gray-300 text-[11px] md:text-xs text-center">
                             <!-- Loading State -->
                             <tr v-if="isLoading">
-                                <td colspan="5" class="py-6 text-center text-gray-500">
+                                <td colspan="6" class="py-6 text-center text-gray-500">
                                     Memuat data history...
                                 </td>
                             </tr>
 
                             <!-- Error State -->
                             <tr v-else-if="apiError">
-                                <td colspan="5" class="py-6 text-center text-red-500">
+                                <td colspan="6" class="py-6 text-center text-red-500">
                                     {{ apiError }}
                                 </td>
                             </tr>
@@ -182,6 +185,7 @@ const formatDateWithTime = (dateString) => {
                             <tr v-else v-for="(item, index) in filterHistory" :key="item.idPengaduan || index" class="hover:bg-gray-50 transition">
                                 <td class="hidden md:table-cell py-3 font-normal">{{ index + 1 }}</td>
                                 <td class="py-2.5 md:py-3 font-normal">{{ item.pelanggan.namaPelanggan || '-' }}</td>
+                                <td class="py-2.5 md:py-3 font-normal whitespace-nowrap">{{ item.pelanggan.noKontakPdam || '-' }}</td>
                                 <td class="hidden md:table-cell py-3 font-normal">{{ item.keluhan || '-' }}</td>
                                 <td class="py-2.5 md:py-3 font-normal whitespace-nowrap">
                                     {{ formatDateWithTime(item.tanggalDiterima || item.createdAt) }}
@@ -193,7 +197,7 @@ const formatDateWithTime = (dateString) => {
 
                             <!-- Empty State -->
                             <tr v-if="!isLoading && !apiError && filterHistory.length === 0">
-                                <td colspan="5" class="py-6 text-center text-gray-400 font-normal">
+                                <td colspan="6" class="py-6 text-center text-gray-400 font-normal">
                                     Data riwayat pelanggan tidak ditemukan.
                                 </td>
                             </tr>

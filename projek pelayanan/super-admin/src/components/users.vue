@@ -21,6 +21,39 @@ const userList = ref([])
 const isLoading = ref(false)
 const apiError = ref('')
 
+// Helper Pemetaan Pesan Error ke Bahasa Indonesia Formal
+const getFormalErrorMessage = (error, defaultMessage) => {
+    const status = error?.response?.status
+    const rawMsg = String(error?.response?.data?.message || error?.response?.data?.error || '').toLowerCase()
+
+    if (!error?.response) {
+        return 'Koneksi ke server terputus. Silakan periksa jaringan internet Anda dan coba kembali.'
+    }
+
+    if (status === 409 || rawMsg.includes('unique') || rawMsg.includes('exist') || rawMsg.includes('duplicate') || rawMsg.includes('sudah')) {
+        return 'Email atau nama pengguna sudah terdaftar. Silakan gunakan email atau nama pengguna lain.'
+    }
+
+    switch (status) {
+        case 400:
+        case 422:
+            return 'Data yang Anda masukkan tidak valid. Silakan periksa kembali seluruh isian formulir.'
+        case 401:
+            return 'Sesi Anda telah berakhir. Silakan masuk kembali untuk melanjutkan.'
+        case 403:
+            return 'Anda tidak memiliki hak akses untuk melakukan tindakan ini.'
+        case 404:
+            return 'Data pengguna yang dimaksud tidak ditemukan.'
+        case 500:
+        case 502:
+        case 503:
+        case 504:
+            return 'Terjadi gangguan pada server. Silakan coba beberapa saat lagi.'
+        default:
+            return defaultMessage
+    }
+}
+
 const fetchUsers = async () => {
     isLoading.value = true
     apiError.value = ''
@@ -28,8 +61,8 @@ const fetchUsers = async () => {
         const response = await superServices.users()
         userList.value = response.data?.data || response.data || []
     } catch (error) {
-        apiError.value = 'Gagal mengambil data user.'
-        console.error(error)
+        console.error('Detail Error Fetch Users:', error.response?.data || error)
+        apiError.value = getFormalErrorMessage(error, 'Terjadi kesalahan saat memuat daftar pengguna. Silakan muat ulang halaman.')
     } finally {
         isLoading.value = false
     }
@@ -127,7 +160,7 @@ const submitForm = async () => {
         !form.value.role?.trim() ||
         (modalMode.value === 'add' && !form.value.password?.trim())
     ) {
-        errorMessage.value = 'Semua field wajib harus diisi!'
+        errorMessage.value = 'Seluruh kolom wajib harus diisi dengan lengkap.'
         return
     }
 
@@ -162,8 +195,8 @@ const submitForm = async () => {
         isModalOpen.value = false
         await fetchUsers()
     } catch (error) {
-        errorMessage.value = error.response?.data?.message || error.response?.data?.error || 'Gagal menyimpan data user.'
         console.error('Detail Error Backend:', error.response?.data || error)
+        errorMessage.value = getFormalErrorMessage(error, 'Terjadi kesalahan saat menyimpan data pengguna. Silakan coba kembali.')
     } finally {
         isSubmitting.value = false
     }

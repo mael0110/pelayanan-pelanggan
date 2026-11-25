@@ -17,11 +17,40 @@ const errorMessage = ref('')
 // Daftar role yang diizinkan masuk ke aplikasi CS
 const ALLOWED_ROLES = ['CS']
 
+// Helper Pemetaan Pesan Error ke Bahasa Indonesia Formal
+const getFormalLoginErrorMessage = (error) => {
+  const status = error?.response?.status
+
+  if (!error?.response) {
+    return 'Koneksi ke server terputus. Silakan periksa jaringan internet Anda dan coba kembali.'
+  }
+
+  switch (status) {
+    case 400:
+    case 401:
+    case 404:
+      return 'Email atau nama pengguna maupun kata sandi yang Anda masukkan tidak sesuai.'
+    case 403:
+      return 'Akun Anda tidak memiliki hak akses atau sedang dinonaktifkan.'
+    case 422:
+      return 'Format email, nama pengguna, atau kata sandi tidak valid.'
+    case 429:
+      return 'Terlalu banyak percobaan masuk. Silakan tunggu beberapa saat sebelum mencoba kembali.'
+    case 500:
+    case 502:
+    case 503:
+    case 504:
+      return 'Terjadi gangguan pada server. Silakan coba beberapa saat lagi.'
+    default:
+      return 'Proses masuk gagal dilakukan. Silakan periksa kembali data akun Anda.'
+  }
+}
+
 const handleLogin = async () => {
   errorMessage.value = ''
 
   if (!email.value.trim() || !password.value.trim()) {
-    errorMessage.value = 'Email/Username dan Password wajib diisi!'
+    errorMessage.value = 'Email atau nama pengguna serta kata sandi wajib diisi.'
     return
   }
 
@@ -37,9 +66,10 @@ const handleLogin = async () => {
 
     // Cek apakah role user adalah CS
     if (!ALLOWED_ROLES.includes(userRole)) {
+      console.error('Akses ditolak. Role tidak diizinkan:', result?.user?.role)
       localStorage.removeItem('token')
       localStorage.removeItem('user')
-      errorMessage.value = `Akses ditolak! Akun dengan role "${result?.user?.role || 'tidak dikenali'}" tidak dapat masuk ke halaman CS.`
+      errorMessage.value = 'Akses ditolak. Akun Anda tidak memiliki hak akses untuk masuk ke halaman CS.'
       return
     }
 
@@ -52,7 +82,8 @@ const handleLogin = async () => {
 
     router.push('/dashboard')
   } catch (error) {
-    errorMessage.value = error.response?.data?.message || 'Username/email atau password salah.'
+    console.error('Login error:', error)
+    errorMessage.value = getFormalLoginErrorMessage(error)
   } finally {
     isSubmitting.value = false
   }

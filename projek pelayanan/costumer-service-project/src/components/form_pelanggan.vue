@@ -16,6 +16,37 @@ const errorMessage = ref('')
 const isSubmitting = ref(false)
 const isLoading = ref(false)
 
+// Helper Pemetaan Pesan Error ke Bahasa Indonesia Formal
+const getFormalErrorMessage = (error, defaultMessage) => {
+    const status = error?.response?.status
+
+    if (!error?.response) {
+        return 'Koneksi ke server terputus. Silakan periksa jaringan internet Anda dan coba kembali.'
+    }
+
+    switch (status) {
+        case 400:
+            return 'Data yang dikirimkan tidak valid. Silakan periksa kembali isian formulir Anda.'
+        case 401:
+            return 'Sesi masuk Anda telah berakhir. Silakan masuk kembali.'
+        case 403:
+            return 'Anda tidak memiliki hak akses untuk melakukan tindakan ini.'
+        case 404:
+            return 'Data pelanggan yang dimaksud tidak ditemukan.'
+        case 409:
+            return 'Data pelanggan dengan informasi tersebut sudah terdaftar.'
+        case 422:
+            return 'Data tidak dapat diproses. Pastikan seluruh kolom wajib telah diisi dengan benar.'
+        case 500:
+        case 502:
+        case 503:
+        case 504:
+            return 'Terjadi gangguan pada server. Silakan coba beberapa saat lagi.'
+        default:
+            return defaultMessage
+    }
+}
+
 const form = ref({
     namaPelanggan: '',
     noTelp: '',
@@ -61,8 +92,11 @@ onMounted(async () => {
                 status: item.status || 'PENDING'
             }
         } catch (err) {
-            errorMessage.value = 'Gagal memuat data pelanggan.'
-            console.error(err)
+            console.error('Detail Error Memuat Detail Pelanggan:', err.response?.data || err)
+            errorMessage.value = getFormalErrorMessage(
+                err,
+                'Gagal memuat data pelanggan. Silakan muat ulang halaman.'
+            )
         } finally {
             isLoading.value = false
         }
@@ -82,7 +116,7 @@ const submitForm = async () => {
         !form.value.sumberAduan?.trim() ||
         !form.value.keluhan?.trim()
     ) {
-        errorMessage.value = 'Semua field harus diisi!'
+        errorMessage.value = 'Seluruh kolom formulir wajib diisi.'
         return
     }
 
@@ -116,8 +150,11 @@ const submitForm = async () => {
         }
         router.push('/daftar_pelanggan')
     } catch (error) {
-        errorMessage.value = error.response?.data?.message || error.response?.data?.error || 'Gagal menyimpan data pelanggan.'
-        console.error(error)
+        console.error('Detail Error Simpan Pelanggan:', error.response?.data || error)
+        errorMessage.value = getFormalErrorMessage(
+            error,
+            'Gagal menyimpan data pelanggan. Silakan coba kembali.'
+        )
     } finally {
         isSubmitting.value = false
     }
