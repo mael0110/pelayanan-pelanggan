@@ -8,6 +8,7 @@ import operationServices from '@/services/operationServices.js'
 const route = useRoute()
 const idPengaduan = route.params.id
 const MAX_FILES = 5
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // Maksimal 10MB per file
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || window.location.origin).replace(/\/$/, '')
 
 const isLoading = ref(false)
@@ -47,7 +48,7 @@ const getFormalErrorMessage = (error, defaultMessage) => {
     case 404:
       return 'Data pengaduan atau berkas yang dimaksud tidak ditemukan.'
     case 413:
-      return 'Ukuran berkas yang diunggah melebihi batas maksimal yang diizinkan.'
+      return 'Ukuran berkas yang diunggah melebihi batas maksimal 10MB.'
     case 422:
       return 'Data tidak dapat diproses. Pastikan seluruh kolom wajib telah diisi dengan benar.'
     case 500:
@@ -462,6 +463,18 @@ const handleDocumentChange = (event) => {
   const files = Array.from(event.target.files || [])
   if (!files.length) return
 
+  const oversizedFiles = files.filter((file) => file.size > MAX_FILE_SIZE)
+  const validSizeFiles = files.filter((file) => file.size <= MAX_FILE_SIZE)
+
+  if (oversizedFiles.length > 0) {
+    showToast('Ukuran berkas dokumen melebihi batas maksimal 10MB.', 'error')
+  }
+
+  if (!validSizeFiles.length) {
+    event.target.value = ''
+    return
+  }
+
   const remainingSlots = MAX_FILES - dokumenList.value.length
   if (remainingSlots <= 0) {
     showToast(`Batas maksimal unggah dokumen adalah ${MAX_FILES} berkas.`, 'warning')
@@ -469,11 +482,11 @@ const handleDocumentChange = (event) => {
     return
   }
 
-  if (files.length > remainingSlots) {
+  if (validSizeFiles.length > remainingSlots) {
     showToast(`Hanya ${remainingSlots} berkas dokumen lagi yang dapat ditambahkan (maksimal ${MAX_FILES} berkas).`, 'warning')
   }
 
-  files.slice(0, remainingSlots).forEach((file, idx) => {
+  validSizeFiles.slice(0, remainingSlots).forEach((file, idx) => {
     dokumenList.value.push({
       id: `new-doc-${Date.now()}-${idx}`,
       serverId: null,
@@ -505,6 +518,18 @@ const handlePhotoChange = (event) => {
   const files = Array.from(event.target.files || [])
   if (!files.length) return
 
+  const oversizedFiles = files.filter((file) => file.size > MAX_FILE_SIZE)
+  const validSizeFiles = files.filter((file) => file.size <= MAX_FILE_SIZE)
+
+  if (oversizedFiles.length > 0) {
+    showToast('Ukuran berkas foto melebihi batas maksimal 10MB.', 'error')
+  }
+
+  if (!validSizeFiles.length) {
+    event.target.value = ''
+    return
+  }
+
   const remainingSlots = MAX_FILES - fotoList.value.length
   if (remainingSlots <= 0) {
     showToast(`Batas maksimal unggah foto adalah ${MAX_FILES} berkas.`, 'warning')
@@ -512,11 +537,11 @@ const handlePhotoChange = (event) => {
     return
   }
 
-  if (files.length > remainingSlots) {
+  if (validSizeFiles.length > remainingSlots) {
     showToast(`Hanya ${remainingSlots} berkas foto lagi yang dapat ditambahkan (maksimal ${MAX_FILES} berkas).`, 'warning')
   }
 
-  files.slice(0, remainingSlots).forEach((file, idx) => {
+  validSizeFiles.slice(0, remainingSlots).forEach((file, idx) => {
     fotoList.value.push({
       id: `new-foto-${Date.now()}-${idx}`,
       serverId: null,
@@ -763,14 +788,17 @@ const removePhoto = (index) => {
                 @change="handleDocumentChange"
               />
               
-              <button 
-                v-if="canEdit && dokumenList.length < MAX_FILES"
-                type="button" 
-                @click="triggerDocumentUpload"
-                class="bg-amber-400 hover:bg-amber-500 text-white text-xs font-medium px-4 py-2 rounded-xl shadow-xs transition"
-              >
-                Tambah File
-              </button>
+              <div v-if="canEdit" class="flex items-center gap-2.5">
+                <button 
+                  v-if="dokumenList.length < MAX_FILES"
+                  type="button" 
+                  @click="triggerDocumentUpload"
+                  class="bg-amber-400 hover:bg-amber-500 text-white text-xs font-medium px-4 py-2 rounded-xl shadow-xs transition"
+                >
+                  Tambah File
+                </button>
+                <span class="text-[11px] text-gray-500">Maks. 10MB per file</span>
+              </div>
             </div>
 
             <!-- Foto -->
@@ -863,14 +891,17 @@ const removePhoto = (index) => {
                 @change="handlePhotoChange"
               />
 
-              <button 
-                v-if="canEdit && fotoList.length < MAX_FILES"
-                type="button" 
-                @click="triggerPhotoUpload"
-                class="bg-amber-400 hover:bg-amber-500 text-white text-xs font-medium px-4 py-2 rounded-xl shadow-xs transition"
-              >
-                Tambah File
-              </button>
+              <div v-if="canEdit" class="flex items-center gap-2.5">
+                <button 
+                  v-if="fotoList.length < MAX_FILES"
+                  type="button" 
+                  @click="triggerPhotoUpload"
+                  class="bg-amber-400 hover:bg-amber-500 text-white text-xs font-medium px-4 py-2 rounded-xl shadow-xs transition"
+                >
+                  Tambah File
+                </button>
+                <span class="text-[11px] text-gray-500">Maks. 10MB per file</span>
+              </div>
             </div>
 
             <!-- Tombol Utama (Terima Keluhan / Simpan Perubahan) -->
@@ -879,44 +910,46 @@ const removePhoto = (index) => {
                 type="button" 
                 @click="handleAction"
                 :disabled="isSubmitting"
-                :class="isOnProgress ? 'bg-app-primary hover:opacity-90' : 'bg-emerald-600 hover:opacity-90'"
-                class="w-full text-white font-bold text-xs py-3 rounded-xl shadow-sm transition disabled:opacity-50"
+                :class="{
+                  'bg-app-primary hover:opacity-90': isPending,
+                  'bg-app-success hover:opacity-90': isOnProgress
+                }"
+                class="w-full sm:w-auto text-white text-xs font-semibold px-6 py-2.5 rounded-xl shadow-xs transition disabled:opacity-50"
               >
                 <span v-if="isSubmitting">Memproses...</span>
-                <span v-else>{{ isPending ? 'Terima keluhan' : 'Simpan perubahan' }}</span>
+                <span v-else>{{ isPending ? 'Terima Keluhan' : 'Simpan Perubahan' }}</span>
               </button>
             </div>
 
-            <!-- Tombol Edit Dokumen & Simpan Perubahan saat Status SELESAI -->
-            <div class="pt-2" v-else>
-              <button
+            <!-- Tombol Edit / Simpan / Batal saat Status SELESAI -->
+            <div class="pt-2 flex items-center gap-2.5" v-else>
+              <button 
                 v-if="!isEditingSelesai"
                 type="button"
                 @click="mulaiEditDokumen"
-                class="w-full bg-amber-400 hover:bg-amber-500 text-white font-bold text-xs py-3 rounded-xl shadow-sm transition"
+                class="w-full sm:w-auto bg-amber-400 hover:bg-amber-500 text-white text-xs font-semibold px-6 py-2.5 rounded-xl shadow-xs transition"
               >
                 Edit Dokumen
               </button>
 
-              <div v-else class="flex items-center gap-2">
-                <button
-                  type="button"
-                  @click="batalEditDokumen"
-                  :disabled="isSubmitting"
-                  class="w-1/3 bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold text-xs py-3 rounded-xl shadow-sm transition disabled:opacity-50"
-                >
-                  Batal
-                </button>
-                <button
+              <template v-else>
+                <button 
                   type="button"
                   @click="handleAction"
                   :disabled="isSubmitting"
-                  class="w-2/3 bg-app-primary hover:opacity-90 text-white font-bold text-xs py-3 rounded-xl shadow-sm transition disabled:opacity-50"
+                  class="w-full sm:w-auto bg-app-success hover:opacity-90 text-white text-xs font-semibold px-6 py-2.5 rounded-xl shadow-xs transition disabled:opacity-50"
                 >
-                  <span v-if="isSubmitting">Memproses...</span>
-                  <span v-else>Simpan perubahan</span>
+                  {{ isSubmitting ? 'Memproses...' : 'Simpan Perubahan' }}
                 </button>
-              </div>
+                <button 
+                  type="button"
+                  @click="batalEditDokumen"
+                  :disabled="isSubmitting"
+                  class="w-full sm:w-auto bg-gray-400 hover:bg-gray-500 text-white text-xs font-semibold px-6 py-2.5 rounded-xl shadow-xs transition disabled:opacity-50"
+                >
+                  Batal
+                </button>
+              </template>
             </div>
 
           </div>
